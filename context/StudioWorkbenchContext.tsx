@@ -252,6 +252,8 @@ function useStudioWorkbenchValue({
         remaining: Math.max(0, prev.remaining - 1),
       }));
     } catch {
+      console.error(error);
+      Sentry.captureException(error);
       setResult(null);
       setError("Something went wrong while generating the image.");
     } finally {

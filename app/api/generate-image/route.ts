@@ -9,12 +9,11 @@ import { NextResponse } from "next/server";
 import sharp from "sharp";
 
 import * as Sentry from "@sentry/nextjs";
-import { openaiProvider } from "@/lib/openai";
 import { ACCEPTED_SOURCE_IMAGE_MIME_TYPES } from "@/lib/constants";
 import { getStylePreset } from "@/lib/style-presets";
-
-import { APICallError, generateImage, NoImageGeneratedError } from "ai";
 import { uploadBufferToImageKit } from "@/lib/imagekit";
+import { generateStyledImageWithReplicate } from "@/lib/generate-with-replicate";
+import { openAiImageModels } from "@/lib/openai-image-models";
 
 export const runtime = "nodejs";
 
@@ -28,10 +27,6 @@ type GenerateImageRequest = {
   model?: string;
 };
 
-/**
- * inferImageSize reads width and height from the uploaded image (via sharp), computes aspect ratio,
- * and returns one of the allowed `size` values for OpenAI image edits.
- */
 async function inferImageSize(imageBuffer: Buffer): Promise<EditImageSize> {
   try {
     const metadata = await sharp(imageBuffer).metadata();
@@ -42,11 +37,22 @@ async function inferImageSize(imageBuffer: Buffer): Promise<EditImageSize> {
 
     const aspectRatio = metadata.width / metadata.height;
 
-    if (aspectRatio > 1.08) return "1536x1024"; // this means that the input image is wider than it is tall
-    if (aspectRatio < 0.92) return "1024x1536"; // this means that the input image is taller than it is wide
-    return "1024x1024"; // this means that the input image is square
+    if (aspectRatio > 1.08) return "1536x1024";
+    if (aspectRatio < 0.92) return "1024x1536";
+    return "1024x1024";
   } catch {
     return "1024x1024";
+  }
+}
+
+function mapImageSizeToAspectRatio(size: EditImageSize) {
+  switch (size) {
+    case "1536x1024":
+      return "3:2";
+    case "1024x1536":
+      return "2:3";
+    default:
+      return "1:1";
   }
 }
 
@@ -74,13 +80,6 @@ export async function POST(request: Request) {
         used: usedThisMonth,
       },
       { status: 429 },
-    );
-  }
-
-  if (!openaiProvider) {
-    return NextResponse.json(
-      { error: "Missing OPENAI_API_KEY." },
-      { status: 500 },
     );
   }
 
@@ -113,9 +112,12 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!model) {
+  if (
+    typeof model !== "string" ||
+    !openAiImageModels.includes(model as never)
+  ) {
     return NextResponse.json(
-      { error: "Please choose a model." },
+      { error: "Please choose a valid model." },
       { status: 400 },
     );
   }
@@ -128,26 +130,37 @@ export async function POST(request: Request) {
     );
   }
 
-  const imageResponse = await fetch(sourceImageUrl);
-  if (!imageResponse.ok) {
+  let imageBuffer: Buffer;
+
+  try {
+    const imageResponse = await fetch(sourceImageUrl);
+
+    if (!imageResponse.ok) {
+      return NextResponse.json(
+        { error: "Could not fetch the uploaded source image." },
+        { status: 404 },
+      );
+    }
+
+    imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
+  } catch {
     return NextResponse.json(
       { error: "Could not fetch the uploaded source image." },
       { status: 404 },
     );
   }
 
-  const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
   const imageSize = await inferImageSize(imageBuffer);
+  const aspectRatio = mapImageSizeToAspectRatio(imageSize);
 
   const prompt = [
     preset.prompt,
-    "Do not add extra people, extra limbs, duplicate subjects, or change the overall camera angle.",
+    "Preserve the person's identity, face structure, pose, composition, and overall framing.",
+    "Do not add extra people, extra limbs, duplicate subjects, or change the camera angle.",
   ].join("\n\n");
 
   try {
-    // generateImage =>
-
-    const result = await Sentry.startSpan(
+    const generated = await Sentry.startSpan(
       {
         name: `image edit ${model}`,
         op: "gen_ai.request",
@@ -156,55 +169,30 @@ export async function POST(request: Request) {
           "gen_ai.operation.name": "request",
           "gen_ai.request.messages": JSON.stringify([
             { role: "user", content: prompt },
-            { role: "user", content: "[source image attachment omitted]" },
+            { role: "user", content: "[source image URL omitted]" },
           ]),
         },
       },
-      async (span) => {
-        const out = await generateImage({
-          model: openaiProvider!.imageModel(model),
-          prompt: {
-            images: [imageBuffer],
-            text: prompt,
-          },
-          size: imageSize,
-          providerOptions: {
-            openai: {
-              input_fidelity: "high", // this means that the input image is used as a reference for the generation,
-              quality: "medium", // this means that the output image is of medium quality
-              output_format: "png",
-              user: userId,
-            },
-          },
+      async () => {
+        return await generateStyledImageWithReplicate({
+          sourceImageUrl,
+          prompt: `${prompt}\n\nUse aspect ratio ${aspectRatio}.`,
+          model,
         });
-
-        const u = out.usage;
-
-        if (u.inputTokens != null) {
-          span.setAttribute("gen_ai.usage.input_tokens", u.inputTokens);
-        }
-
-        if (u.outputTokens != null) {
-          span.setAttribute("gen_ai.usage.output_tokens", u.outputTokens);
-        }
-        if (u.totalTokens != null) {
-          span.setAttribute("gen_ai.usage.total_tokens", u.totalTokens);
-        }
-
-        span.setAttribute(
-          "gen_ai.response.text",
-          JSON.stringify([
-            "[image/png generated; pixel data not sent to Sentry]",
-          ]),
-        );
-
-        return out;
       },
     );
 
-    const imageBase64 = result.image.base64;
+    const generatedResponse = await fetch(generated.resultUrl);
 
-    const resultBuffer = Buffer.from(imageBase64, "base64");
+    if (!generatedResponse.ok) {
+      return NextResponse.json(
+        { error: "Could not download the generated image." },
+        { status: 502 },
+      );
+    }
+
+    const resultBuffer = Buffer.from(await generatedResponse.arrayBuffer());
+    const imageBase64 = resultBuffer.toString("base64");
 
     const { url: resultImageUrl } = await uploadBufferToImageKit({
       buffer: resultBuffer,
@@ -241,22 +229,7 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("generate-image route failed", error);
-
-    if (APICallError.isInstance(error)) {
-      return NextResponse.json(
-        {
-          error: error.message || "Image generation failed. Please try again.",
-        },
-        { status: error.statusCode ?? 500 },
-      );
-    }
-
-    if (NoImageGeneratedError.isInstance(error)) {
-      return NextResponse.json(
-        { error: "The model did not return an image." },
-        { status: 502 },
-      );
-    }
+    Sentry.captureException(error);
 
     return NextResponse.json(
       { error: "Image generation failed. Please try again." },

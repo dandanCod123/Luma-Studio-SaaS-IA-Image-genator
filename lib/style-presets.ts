@@ -15,7 +15,7 @@ export const stylePresets: StylePreset[] = [
     thumbnailPath: "/storybook-example.png",
     thumbnailAlt: "Storybook 3D preset example",
     prompt:
-      "Transform the uploaded image into a premium storybook-inspired 3D illustration. Preserve the original subject identity, pose, framing, major objects, and scene relationships. Add soft depth, warm cinematic lighting, tactile materials, and a polished animated-film finish.",
+      "Restyle the input image as a premium storybook-inspired 3D illustration. Preserve the same person, facial identity, hairstyle, pose, clothing shape, framing, and scene composition. Add soft depth, warm cinematic lighting, polished materials, and a refined animated-film look.",
   },
   {
     slug: "anime-cel",
@@ -24,7 +24,7 @@ export const stylePresets: StylePreset[] = [
     thumbnailPath: "/anime-cel-example.png",
     thumbnailAlt: "Anime cel preset example",
     prompt:
-      "Restyle the uploaded image as high-end anime cel art. Preserve the exact subject, pose, composition, outfit details, and background structure. Use clean linework, elegant cel shading, expressive color contrast, and polished studio-animation clarity.",
+      "Restyle the input image as high-end anime cel art. Preserve the same person, facial identity, hairstyle, pose, outfit, framing, and background structure. Use clean linework, elegant cel shading, expressive color contrast, and polished studio-anime rendering.",
   },
   {
     slug: "clay-render",
@@ -33,7 +33,7 @@ export const stylePresets: StylePreset[] = [
     thumbnailPath: "/clay-render-example.png",
     thumbnailAlt: "Clay render preset example",
     prompt:
-      "Turn the uploaded image into a handcrafted clay-render scene. Preserve identity, framing, silhouette, and important scene details. Use sculpted clay textures, soft rounded forms, subtle imperfections, and warm premium lighting.",
+      "Restyle the input image as a handcrafted clay render. Preserve the same person, facial identity, pose, silhouette, framing, and important scene details. Use sculpted clay textures, rounded forms, subtle handmade imperfections, and warm premium lighting.",
   },
   {
     slug: "pixart",
@@ -43,7 +43,7 @@ export const stylePresets: StylePreset[] = [
     thumbnailPath: "/pixart-example.png",
     thumbnailAlt: "Pixart preset example",
     prompt:
-      "Transform the uploaded image into a premium family-animation-inspired 3D illustration. Preserve the original subject identity, expression, pose, framing, outfit details, and important background structure. Use expressive features, charming stylization, warm lighting, and polished animated-film rendering without changing the core composition.",
+      "Restyle the input image as a premium family-animation-inspired 3D character portrait. Preserve the same person, facial identity, expression, pose, clothing, framing, and scene layout. Use charming stylization, expressive features, warm lighting, and polished animated-film rendering.",
   },
   {
     slug: "voxel-block",
@@ -53,7 +53,7 @@ export const stylePresets: StylePreset[] = [
     thumbnailPath: "/voxel-block-example.png",
     thumbnailAlt: "Voxel block preset example",
     prompt:
-      "Transform the uploaded image into a premium voxel block-world illustration with cubic forms, pixel-crafted surfaces, simplified geometry, and bright game-like lighting. Preserve the subject identity, pose, framing, outfit details, and major scene structure while changing only the artistic style.",
+      "Restyle the input image as a premium voxel block-world illustration. Preserve the same person, pose, framing, outfit details, and major scene structure. Use cubic forms, pixel-crafted surfaces, simplified geometry, and bright game-like lighting.",
   },
   {
     slug: "marble-sculpture",
@@ -63,7 +63,7 @@ export const stylePresets: StylePreset[] = [
     thumbnailPath: "/marble-sculpture-example.png",
     thumbnailAlt: "Marble sculpture preset example",
     prompt:
-      "Transform the uploaded image into a refined marble sculpture portrait. Preserve the original subject identity, pose, framing, and major scene relationships while translating the image into carved stone with elegant chiselled detail, subtle surface veining, soft museum-style lighting, and a premium gallery finish.",
+      "Restyle the input image as a refined marble sculpture portrait. Preserve the same person, facial identity, pose, framing, and major scene relationships. Translate the subject into carved stone with elegant chiseled detail, subtle surface veining, soft museum lighting, and a premium gallery finish.",
   },
 ];
 
